@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { useDebounce } from "use-debounce";
+import { useDebouncedCallback } from "use-debounce";
 
 import css from "./App.module.css";
 import { fetchNotes } from "../../services/noteService";
@@ -13,18 +13,25 @@ import Modal from "../Modal/Modal";
 export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery] = useDebounce(searchQuery, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const handleSearch = useDebouncedCallback((value: string): void => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  }, 300);
+
   const { data, isLoading, isError, isSuccess } = useQuery({
-    queryKey: ["notes", currentPage, debouncedQuery],
-    queryFn: () => fetchNotes(currentPage, debouncedQuery),
+    queryKey: ["notes", currentPage, searchQuery],
+    queryFn: () => fetchNotes(currentPage, searchQuery),
     placeholderData: keepPreviousData,
   });
 
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
+  const handleOpenModal = (): void => {
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = (): void => {
+    setIsModalOpen(false);
   };
 
   return (
@@ -40,19 +47,20 @@ export default function App() {
           />
         )}
 
-        <button className={css.button} onClick={() => setIsModalOpen(true)}>
+        <button type="button" className={css.button} onClick={handleOpenModal}>
           Create note +
         </button>
       </header>
 
       {isLoading && <p>Loading...</p>}
-      {isError && <p>Error...</p>}
+
+      {isError && <p>Error loading notes.</p>}
 
       {data && data.notes.length > 0 && <NoteList notes={data.notes} />}
 
       {isModalOpen && (
-        <Modal onClose={() => setIsModalOpen(false)}>
-          <NoteForm onClose={() => setIsModalOpen(false)} />
+        <Modal onClose={handleCloseModal}>
+          <NoteForm onClose={handleCloseModal} />
         </Modal>
       )}
     </div>
